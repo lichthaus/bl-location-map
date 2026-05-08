@@ -3,7 +3,7 @@
  * Plugin Name:       BL Location Map
  * Plugin URI:        https://boartlongyearproducts.com/
  * Description:       Boart Longyear global locations map — interactive dark-mode map of corporate offices and authorized distributors. Usage: [bl_location_map] or [bl_location_map header="false"] to suppress the built-in title header on pages that already carry their own heading.
- * Version:           1.0.2
+ * Version:           1.0.3
  * Author:            Boart Longyear Drilling Products
  * Author URI:        https://boartlongyearproducts.com/
  * License:           Proprietary
@@ -13,7 +13,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 if ( ! defined( 'BL_LOCMAP_VERSION' ) ) {
-    define( 'BL_LOCMAP_VERSION', '1.0.2' );
+    define( 'BL_LOCMAP_VERSION', '1.0.3' );
 }
 define( 'BL_LOCMAP_FILE', __FILE__ );
 define( 'BL_LOCMAP_DIR',  plugin_dir_path( __FILE__ ) );

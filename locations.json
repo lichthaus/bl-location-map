@@ -526,5 +526,17 @@
     "phone": "(505) 8182-5477",
     "email": "info@amavsa.com",
     "web": ""
+  },
+  {
+    "region": "North America",
+    "type": "Corporate",
+    "company": "Boart Longyear",
+    "address": "1111 Main Street West, North Bay, Ontario, Canada",
+    "lat": 46.320057,
+    "lng": -79.478098,
+    "contact": "Sales",
+    "phone": "+1 (705) 474-3853",
+    "email": "info@boartlongyear.com",
+    "web": "www.boartlongyearproducts.com"
   }
 ]
