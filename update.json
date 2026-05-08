@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "tested": "6.5",
+  "requires": "5.0",
+  "download_url": "https://github.com/lichthaus/bl-location-map/releases/latest/download/bl-location-map.zip",
+  "last_updated": "2026-05-08",
+  "changelog": "<h4>1.0.0</h4><ul><li>Initial release: dark-mode global locations map with corporate (orange) and distributor (blue) markers, search, region filter, type toggle, marker clustering, and slide-in detail panel.</li></ul>"
+}

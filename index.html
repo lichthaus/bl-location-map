@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Global Locations — Boart Longyear Products</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+
+<style>
+:root{
+  --bl-bg:#0C0D0E;
+  --bl-surface:#1c1c1e;
+  --bl-surface2:#252527;
+  --bl-border:#353537;
+  --bl-text:#FFFFFF;
+  --bl-text-muted:#a8aab0;
+  --bl-text-dim:#525861;
+  --bl-orange:#F26828;
+  --bl-orange-deep:#E35C1F;
+  --bl-orange-soft:#FFBC7D;
+  --bl-blue:#1E88E5;
+  --bl-blue-deep:#005CB9;
+  --bl-radius:10px;
+  --bl-radius-sm:6px;
+  --bl-shadow:0 4px 24px rgba(0,0,0,.55);
+  --panel-w:380px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bl-bg);color:var(--bl-text);
+  font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
+
+#bl-locations{position:fixed;inset:0;display:flex;flex-direction:column}
+
+/* ── Header ───────────────────────────────────────── */
+.bl-header{
+  display:flex;align-items:center;gap:24px;
+  padding:14px 20px;background:linear-gradient(180deg,#0C0D0E 0%,#141416 100%);
+  border-bottom:1px solid var(--bl-border);z-index:1000;flex:0 0 auto;
+}
+.bl-header h1{margin:0;font-size:18px;font-weight:600;letter-spacing:.3px}
+.bl-header .sub{color:var(--bl-text-muted);font-size:13px;margin-left:4px}
+
+/* ── Toolbar ──────────────────────────────────────── */
+.bl-toolbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 20px;background:var(--bl-surface);border-bottom:1px solid var(--bl-border);
+  z-index:900;flex:0 0 auto;
+}
+.bl-toolbar input,.bl-toolbar select{
+  background:var(--bl-surface2);color:var(--bl-text);border:1px solid var(--bl-border);
+  border-radius:var(--bl-radius-sm);padding:8px 12px;font:inherit;font-size:13px;
+  outline:none;transition:border-color .15s;
+}
+.bl-toolbar input::placeholder{color:var(--bl-text-dim)}
+.bl-toolbar input:focus,.bl-toolbar select:focus{border-color:var(--bl-orange)}
+.bl-toolbar input[type=search]{min-width:220px;flex:1 1 220px;max-width:340px}
+.bl-toolbar select{min-width:160px}
+
+.bl-toggle{display:inline-flex;border:1px solid var(--bl-border);border-radius:var(--bl-radius-sm);overflow:hidden;background:var(--bl-surface2)}
+.bl-toggle button{
+  background:transparent;color:var(--bl-text-muted);border:0;
+  padding:8px 14px;font:inherit;font-size:13px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:8px;
+}
+.bl-toggle button + button{border-left:1px solid var(--bl-border)}
+.bl-toggle button.active{background:var(--bl-orange);color:#fff}
+.bl-toggle button:not(.active):hover{background:var(--bl-border);color:var(--bl-text)}
+.bl-toggle .dot{width:8px;height:8px;border-radius:50%}
+.bl-toggle .dot.corp{background:var(--bl-orange)}
+.bl-toggle .dot.dist{background:var(--bl-blue)}
+
+.bl-count{margin-left:auto;color:var(--bl-text-muted);font-size:12px;letter-spacing:.5px;text-transform:uppercase}
+.bl-count strong{color:var(--bl-text);font-weight:600}
+
+/* ── Map ──────────────────────────────────────────── */
+.bl-map-wrap{position:relative;flex:1 1 auto;min-height:0}
+#bl-map{position:absolute;inset:0;background:#0a0b0d}
+.leaflet-container{background:#0a0b0d;font-family:inherit}
+.leaflet-control-attribution{background:rgba(12,13,14,.7)!important;color:var(--bl-text-muted)!important;font-size:10px}
+.leaflet-control-attribution a{color:var(--bl-text-muted)!important}
+.leaflet-control-zoom a{
+  background:var(--bl-surface)!important;color:var(--bl-text)!important;
+  border:1px solid var(--bl-border)!important;
+}
+.leaflet-control-zoom a:hover{background:var(--bl-surface2)!important;color:var(--bl-orange)!important}
+
+/* ── Markers ──────────────────────────────────────── */
+.bl-marker{position:relative;width:24px;height:24px;cursor:pointer}
+.bl-marker .core{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:14px;height:14px;border-radius:50%;
+  border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.45);
+  transition:transform .15s ease;
+}
+.bl-marker.dist .core{width:12px;height:12px;background:var(--bl-blue)}
+.bl-marker.corp .core{background:var(--bl-orange)}
+.bl-marker.corp::before,
+.bl-marker.corp::after{
+  content:"";position:absolute;top:50%;left:50%;width:14px;height:14px;
+  margin:-7px 0 0 -7px;border-radius:50%;
+  background:rgba(242,104,40,.45);
+  animation:bl-pulse 2.2s ease-out infinite;
+  pointer-events:none;
+}
+.bl-marker.corp::after{animation-delay:1.1s}
+@keyframes bl-pulse{
+  0%{transform:scale(1);opacity:.7}
+  100%{transform:scale(2.8);opacity:0}
+}
+.bl-marker:hover .core{transform:translate(-50%,-50%) scale(1.25)}
+.bl-marker.active .core{
+  transform:translate(-50%,-50%) scale(1.35);
+  box-shadow:0 0 0 1px rgba(0,0,0,.55), 0 0 0 3px var(--bl-orange-soft), 0 2px 8px rgba(0,0,0,.55);
+}
+
+/* ── Cluster ──────────────────────────────────────── */
+.bl-cluster{
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(28,28,30,.95);border:2px solid var(--bl-orange);
+  color:#fff;border-radius:50%;font-weight:700;font-size:13px;
+  box-shadow:0 2px 10px rgba(0,0,0,.55);
+}
+.bl-cluster.s{width:34px;height:34px;font-size:12px}
+.bl-cluster.m{width:42px;height:42px}
+.bl-cluster.l{width:52px;height:52px;font-size:14px}
+
+/* ── Detail panel ─────────────────────────────────── */
+.bl-panel{
+  position:absolute;top:0;right:0;bottom:0;width:var(--panel-w);
+  background:var(--bl-surface);border-left:1px solid var(--bl-border);
+  box-shadow:var(--bl-shadow);
+  transform:translateX(100%);transition:transform .28s cubic-bezier(.2,.7,.2,1);
+  display:flex;flex-direction:column;z-index:800;
+}
+.bl-panel.open{transform:translateX(0)}
+.bl-panel-head{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:18px 20px 14px;border-bottom:1px solid var(--bl-border);
+}
+.bl-panel-type{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--bl-text-muted);
+  margin-bottom:6px;
+}
+.bl-panel-type .dot{width:10px;height:10px;border-radius:50%}
+.bl-panel-type .dot.corp{background:var(--bl-orange);box-shadow:0 0 0 2px rgba(242,104,40,.25)}
+.bl-panel-type .dot.dist{background:var(--bl-blue);box-shadow:0 0 0 2px rgba(30,136,229,.25)}
+.bl-panel-name{font-size:18px;font-weight:600;line-height:1.3;margin:0}
+.bl-panel-region{color:var(--bl-text-muted);font-size:12px;margin-top:4px}
+.bl-panel-close{
+  margin-left:auto;background:transparent;color:var(--bl-text-muted);border:0;
+  cursor:pointer;font-size:22px;line-height:1;padding:4px 6px;border-radius:var(--bl-radius-sm);
+}
+.bl-panel-close:hover{background:var(--bl-surface2);color:var(--bl-text)}
+
+.bl-panel-body{padding:18px 20px;overflow-y:auto;flex:1 1 auto}
+.bl-field{margin-bottom:16px}
+.bl-field-label{
+  font-size:10px;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--bl-text-dim);margin-bottom:4px;font-weight:600;
+}
+.bl-field-val{font-size:14px;line-height:1.5;color:var(--bl-text);word-break:break-word}
+.bl-field-val a{color:var(--bl-orange-soft);text-decoration:none;border-bottom:1px solid rgba(255,188,125,.3)}
+.bl-field-val a:hover{color:var(--bl-orange);border-bottom-color:var(--bl-orange)}
+.bl-field-val.muted{color:var(--bl-text-muted);font-style:italic;font-size:13px}
+
+.bl-empty{
+  padding:60px 24px;text-align:center;color:var(--bl-text-muted);
+}
+.bl-empty h3{color:var(--bl-text);margin:0 0 8px;font-weight:500}
+
+/* ── Mobile ───────────────────────────────────────── */
+@media (max-width:720px){
+  .bl-header{padding:12px 14px}
+  .bl-toolbar{padding:10px 12px}
+  .bl-toolbar input[type=search]{min-width:0;flex:1 1 100%;max-width:none}
+  .bl-count{margin-left:0;width:100%}
+  .bl-panel{width:100%;--panel-w:100%}
+}
+</style>
+</head>
+<body>
+
+<div id="bl-locations">
+
+  <header class="bl-header">
+    <h1>Global Locations</h1>
+    <span class="sub">Corporate offices &amp; authorized distributors worldwide</span>
+  </header>
+
+  <div class="bl-toolbar">
+    <input type="search" id="bl-search" placeholder="Search company, country, contact…" autocomplete="off">
+    <select id="bl-region"><option value="">All regions</option></select>
+    <div class="bl-toggle" role="tablist" aria-label="Filter by type">
+      <button data-type="all" class="active">All</button>
+      <button data-type="Corporate"><span class="dot corp"></span>Corporate</button>
+      <button data-type="Distributor"><span class="dot dist"></span>Distributors</button>
+    </div>
+    <div class="bl-count"><strong id="bl-count-num">0</strong> showing</div>
+  </div>
+
+  <div class="bl-map-wrap">
+    <div id="bl-map"></div>
+
+    <aside class="bl-panel" id="bl-panel" aria-hidden="true">
+      <div class="bl-panel-head">
+        <div>
+          <div class="bl-panel-type" id="bl-p-type"></div>
+          <h2 class="bl-panel-name" id="bl-p-name"></h2>
+          <div class="bl-panel-region" id="bl-p-region"></div>
+        </div>
+        <button class="bl-panel-close" id="bl-p-close" aria-label="Close">×</button>
+      </div>
+      <div class="bl-panel-body" id="bl-p-body"></div>
+    </aside>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script type="application/json" id="bl-locations-data">[{"region":"Europe","type":"Distributor","company":"INDEQ Corp OÜ","address":"HARJUMAA, MAHTRA TN 72-163,TALLINN, 13812, Estonia","lat":59.449331,"lng":24.7157,"contact":"Sales","phone":"+358 9 2303415","email":"o.chekulaeva@esquire-corp.ch","web":""},{"region":"South America","type":"Distributor","company":"ABA REPRESENTACIONES S.A.C.","address":"Av. Fernando Teran 113 ‚ 115 Chorrillos ‚Lima. Peru","lat":-12.172996,"lng":-77.020052,"contact":"Katty Arango","phone":"Tel +511 252-7601","email":"karango@aba-representaciones.com","web":""},{"region":"Burkina Faso","type":"Distributor","company":"Afric Equipements et Services SARL","address":"11 BP 612 CMS Ouaga 11; Arrondissement N12 Parcelle 14, lot 33, section 283, secteur 23(Ouaga 2000) Ouagadougou, Burkina Faso","lat":12.303425,"lng":-1.611839,"contact":"Imirane Toure","phone":"Tel +226 62 72 68 68","email":"itoure@aesgroup.be","web":"www.aesgroup.be"},{"region":"Saudi Arabia","type":"Distributor","company":"AGINCO - International Agencies and Commerce Ltd","address":"NIB Business Tower, Sari Street- 3rd Floor - Office #310, Al Khalidiyah District, Jeddah, Saudi Arabia","lat":21.553648,"lng":39.165002,"contact":"Sales","phone":"Tel +966 502 587 416 / Tel  +966 503 212 108","email":"Vaheeb <vaheeb@aginco.com.sa>Wasseem Fayyumi <w.fayyumi@aginco.com.sa>Muzaffar Khan <muzaffar@aginco.com.sa>","web":"www.aginco.com.sa"},{"region":"Africa","type":"Distributor","company":"Allied Mining Services Limited","address":"Nyakato Industrial Area, Mwanza, Tanzania, P. O. Box 2260","lat":-2.525591,"lng":32.888624,"contact":"Nilesh Joshi","phone":"Tel +255 28 2571561","email":"nilesh@alliedgroup.co.tz","web":"www.alliedgroup.co.tz"},{"region":"Africa","type":"Corporate","company":"Boart Longyear","address":"1067 Katrol Ave., Robertville 1709, South Africa","lat":-26.187945,"lng":27.91877,"contact":"Andre van Heerden","phone":"Tel +27 11 767 9372","email":"andre.vanheerden@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"APAC","type":"Corporate","company":"Boart Longyear","address":"Burbridge Business Park, 26 Butler Boulevard, Adelaide Airport SA 5950, Australia","lat":-34.937614,"lng":138.520671,"contact":"Leah Mavratzakis","phone":"Tel +61 08 8375 8317","email":"leah.mavratzakis@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"North America","type":"Corporate","company":"Boart Longyear","address":"2442 South Sheridan Way, Mississauga, Ontario L5J 2M7, Canada","lat":43.515174,"lng":-79.656284,"contact":"Sales","phone":"Tel +1 905 822 7922","email":"info@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"North America","type":"Corporate","company":"Boart Longyear","address":"2455 South 3600 West,West Valley City, UT 84119","lat":40.731139,"lng":-112.019778,"contact":"Sales","phone":"Tel 1-800-457-5778","email":"info@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"North America","type":"Corporate","company":"Boart Longyear","address":"Industria 11, Parque Industrial, Guadalupe, Zacatecas, Mexico","lat":22.736902,"lng":-102.501584,"contact":"Eduardo Diaz","phone":"Tel +52 (492) 92-12122","email":"eduardo.diaz@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"North America","type":"Corporate","company":"Boart Longyear","address":"IOS OFFICES, Torre KOI, Piso 17 David Alfaro Siqueiros 106, Col. Valle Oriente San Pedro Garza Garcia, N.L Mexico 66269","lat":25.641875,"lng":-100.32202,"contact":"Sales","phone":"","email":"","web":""},{"region":"South America","type":"Corporate","company":"Boart Longyear","address":"Av. Defensores del Morro 2066, Chorrillos, Lima Region, Peru","lat":-12.180161,"lng":-77.013813,"contact":"MiguelAngel Bracesco","phone":"Tel +51 1 203 4200","email":"MBracesco@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"South America","type":"Corporate","company":"Boart Longyear","address":"Av. El Derby 055, Office 601. Centro de Negocios Cronos. Santiago de Surco , Lima33","lat":-12.099103,"lng":-76.970021,"contact":"Santiago Valdez","phone":"Tel +51 1 2034200","email":"svaldez@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"South America","type":"Corporate","company":"Boart Longyear","address":"Av. El Salto 4001, Huechuraba, Chile","lat":-33.39223,"lng":-70.62348,"contact":"Sales","phone":"Tel +56 2 2595 3300","email":"info@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"South America","type":"Corporate","company":"Boart Longyear","address":"Barrio Industrial Los Libertadores. Av. Los Libertadores 16.500. Sitio 1-A-2 Colina -Santiago - Chile","lat":-33.310984,"lng":-70.705819,"contact":"Fernando Wuilloud","phone":"Tel +54 261 405 3048","email":"fernando.wuilloud@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"South America","type":"Corporate","company":"Boart Longyear","address":"Carrera 39 #5A-95 Of. 401., Medellín, Antioquia, Colombia","lat":6.205896,"lng":-75.568965,"contact":"Andres J Valencia","phone":"Tel +57 312 474 1772","email":"andres.valencia@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"South America","type":"Corporate","company":"Boart Longyear","address":"1133 Vilardebó Montevideo, Uruguay","lat":-32.9454,"lng":-68.742,"contact":"Fernando Wuilloud","phone":"Tel +54 261 405 3048","email":"fernando.wuilloud@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"South America","type":"Corporate","company":"Boart Longyear","address":"Rua Silex, 65 Camargos – Belo Horizonte – MG CEP 30.520-200 – Brazil","lat":-19.940836,"lng":-44.012475,"contact":"Luiz Marinho","phone":"Tel +55 313048 0068","email":"luiz.marinho@boartlongyear.com","web":"www.boartlongyearproducts.com"},{"region":"Egypt","type":"Distributor","company":"Commander L.L.C","address":"1178 Minister Square, Buil# 3G, 2nd FLR, Apt#202, Sheraton- El Nozha., Cairo-EG, Egypt","lat":30.0669,"lng":31.214778,"contact":"Mina / Mark Magdy Amaziz","phone":"Tel +201223900609","email":"info@commander-co.com","web":"www.commander-co.com"},{"region":"South America","type":"Distributor","company":"Corporacion general de tractores, S.A GENTRAC","address":"54 Calzada Aguilar Batres Guatemala, Guatemala","lat":14.569576,"lng":-90.573413,"contact":"Sales","phone":"Tel +502 2328-9000","email":"ventas@gentrac.com.gt","web":"https://gentrac.com.gt/"},{"region":"Namibia","type":"Distributor","company":"DESERT MINING SUPPLIERS PTY LTD","address":"15 ALBERT WESSELS STREET WINDHOEK, P O BOX 240 WINDHOEK, NAMIBIA","lat":-22.533158,"lng":17.067936,"contact":"Jannie Kirsten","phone":"Tel +264837299190","email":"dms@afol.com.na","web":"www.desertminingsuppliers.com"},{"region":"Europe","type":"Distributor","company":"DIA-TEAM AB","address":"Moråsvägen 5,  SE-961 67  Boden, Sweden","lat":65.835,"lng":21.7143,"contact":"Sales","phone":"Tel +46 70 525 39 17","email":"Johnny Vikenäs <johnny@diateam.no>","web":"www.diateam.se"},{"region":"Europe","type":"Distributor","company":"DIA-TEAM AS","address":"Industriparken Selsbakk , FORSOKSLIA 9, 7028 Trondheim , Norway","lat":63.383563,"lng":10.36397,"contact":"Sales","phone":"Tel +47 72563890","email":"Post-NO <post-no@diateam.no>","web":"www.diateam.no"},{"region":"Europe","type":"Distributor","company":"DISTRIBUCIONES PAKO, S.L.","address":"LUGAR SAN SALVADOR DE BUDINO-MARCO, S/N BUDINO O PORRINO, 36400 Spain","lat":42.123055,"lng":-8.612595,"contact":"Sales","phone":"+34 986 338 887","email":"pako@distribucionespako.com","web":"www.distribucionespako.com"},{"region":"Europe","type":"Distributor","company":"Drill Store UK LTD","address":"UNIT 7 WILSON BUSINESS PARK Derbyshire S43 4PW HARPER WAY - MARKHAM VALE CHESTERFIELD, S44 5JX United Kingdom","lat":53.278558,"lng":-1.262591,"contact":"Sales","phone":"0-7917352934","email":"arichardson@drillstoreukltd.com","web":"www.drillstoreukltd.com"},{"region":"South America","type":"Distributor","company":"DRILLING IMPORTS COMPANY SAS","address":"Av. Troncal de Occidente 1-59 Este. Parque Empresarial El Portal Bodega 12 Mosquera, Cundinamarca, Colombia.","lat":4.700808,"lng":-74.2332,"contact":"John Freddy Cano","phone":"Tel +57 316 025 3643","email":"gcomercial@drimpco.com","web":""},{"region":"South America","type":"Distributor","company":"FH TECNOLOGIA","address":"Semáforos Pista Sabana Grande 150mts al sur, Managua. Nicaragua","lat":12.124005,"lng":-86.204782,"contact":"Sales","phone":"Tel +505 84081468","email":"","web":""},{"region":"Mozambique","type":"Distributor","company":"Filtros e Tubos, LDA","address":"Av. Uniao Africana, Parcella, 728 / B. Matola, Mozambique","lat":-25.946806,"lng":32.441792,"contact":"Glenn Stoffberg","phone":"Tel 00258 21 722 492","email":"glenn@filtros.co.mz","web":""},{"region":"South America","type":"Distributor","company":"Finilager Bolivia","address":"Calle Nicolas Acosta 415. Zona San Pedro La Paz, Bolivia","lat":-16.503573,"lng":-68.135879,"contact":"Sales","phone":"Tel + 591 2 2353694","email":"vaguirre@finilager.bo","web":"https://finilager.bo/"},{"region":"Europe","type":"Distributor","company":"KAYEN MADEN  A.S.","address":"OSTIM OSB MAH. 1220 SOK. NO:13/3 , YENIMAHALLE - ANKARA, 06374 Turkey","lat":39.987314,"lng":32.746875,"contact":"Sales","phone":"Tel+905318805759 / Tel+903123853312","email":"Didem ESMER <didem.esmer@kayenmaden.com> , 'gokhan.nasuh' <gokhan.nasuh@kayenmaden.com>'Furkan ÇELİK' <furkan.celik@kayenmaden.com>","web":"http://www.kayenmaden.com"},{"region":"South America","type":"Distributor","company":"MINERA DRILLING S.R.L.","address":"Jr. Jesús 315 Mariano Melgar – Arequipa. Perú","lat":-16.406225,"lng":-71.515363,"contact":"Leonardo Caleb","phone":"Tel +511 252-7601","email":"logistica@mineradrilling.com","web":"https://mineradrilling.com/"},{"region":"South America","type":"Distributor","company":"N.R.Q. INGENIEROS ASOCIADOS S.A.C.","address":"Jirón Joaquin Capello 259, Distrito de Lima 15102, Peru","lat":-12.025819,"lng":-77.052596,"contact":"Sthefanie Rojas","phone":"Tel +51 996992770/+51 996992773 /+51 996992707","email":"srojas@nrqingenieros.com","web":"https://www.nrqingenieros.com/"},{"region":"South America","type":"Distributor","company":"Pergol Maquinaria SA","address":"1133 Vilardebo Montevideo, Uruguay","lat":-34.8779,"lng":-56.1814,"contact":"Nelson Mega","phone":"Tel + 59 8 22091414","email":"nmega@pergol.com.uy","web":"www.pergol.com.uy"},{"region":"Guinea","type":"Distributor","company":"PRD RIGS GUINEE SARL","address":"KIPE DADIA, COMMUNE DE RATOMA,CONAKRY, GUINEE","lat":9.600553,"lng":-13.650381,"contact":"MR.SUMAN REDDY RAJULAPALLI","phone":"Tel +224 625 73 12 10","email":"suman@prdrigs.com","web":"www.prdrigs.com"},{"region":"Kenya","type":"Distributor","company":"PRD RIGS KENYA LIMITED","address":"EASTERN BYPASS OFF THIKA SUPER HIGHWAY, RUIRU JUNCTION, NAIROBI, KENYA, P.O. BOX 66785 - 00800 NAIROBI, KENYA","lat":-1.23877,"lng":36.834629,"contact":"MR. SARAN KUMAR","phone":"Tel +254715775880","email":"saran@prdrigs.com","web":"www.prdrigs.com"},{"region":"South America","type":"Distributor","company":"QUEMCO CIA LTD","address":"Indanza Oe2-34, Quito. Ecuador","lat":-0.153752,"lng":-78.488442,"contact":"Sales","phone":"Tel +593 22446348","email":"Tel +593 22258328","web":""},{"region":"Ghana","type":"Distributor","company":"REISS and CO (GHANA) LTD","address":"REISS TOWERS, C172/3 PARADISE STREET, ASYLUM DOWN,GA-073-1324, BOX CT 5064 - CANTONMENTS","lat":5.567404,"lng":-0.211118,"contact":"ALFRED OTTE/ CHARLES AMANKWAH","phone":"Tel +233 (0)302237074 / 224136","email":"mechanical@reissco.com.gh","web":"www.reissco.com.gh"},{"region":"Morocco","type":"Distributor","company":"RUBEN MAROC","address":"RUE DE LILLE, 39, Morocco","lat":33.590593,"lng":-7.601139,"contact":"Ruben Elbaz","phone":"Tel +212 522 444 952","email":"ruben.rubenmaroc@gmail.com","web":"www.rubenmaroc.ma"},{"region":"South America","type":"Distributor","company":"Valence Boart Longyear","address":"R. Francisco Ildeu da Fonseca, 450, Pilar, Belo Horizonte - MG, 30390-012, Brazil","lat":-20.003286,"lng":-43.97797,"contact":"Rodrigo Jorge Alves da Silva","phone":"+31 3519-6604/ +31 99799-7155","email":"rodrigo.jorge@valence.com.br","web":"https://www.valencemining.com.br/"},{"region":"Europe","type":"Distributor","company":"VUOTEK OY","address":"Yläniitynkatu 6 B, LAPPEENRANTA 53550, Finland","lat":61.038162,"lng":28.199964,"contact":"Sales","phone":"Tel. 040 1684244","email":"petri.naakka@vuotek.fi","web":"www.vuotek.fi"},{"region":"Europe","type":"Distributor","company":"WELLDONE EDS GmbH","address":"Braunschweiger Heerstr. 96  -  29227, Niedersachsen, Celle, Germany","lat":52.59615,"lng":10.109093,"contact":"Sales","phone":"Tel +49 (0)5141 2792 0","email":"Satish Soni <ssoni@welldone.de>","web":"https://www.welldone.de/"},{"region":"Botswana","type":"Distributor","company":"Yours Finesse","address":"1621 Gemsbok Street, Light Industrial, Francistown, Botswana","lat":-21.163646,"lng":27.502323,"contact":"Curt Holland","phone":"Tel 00267 241 3045","email":"yoursfiness@gmail.com","web":"https://sites.google.com/view/yoursfinesse"},{"region":"Zambia","type":"Distributor","company":"ZamAPEX Holdings","address":"PO Box 34972,11058 Zimbabwe House, Haile Selassie Avenue, Lusaka, Zambia","lat":-13.1404,"lng":27.8525,"contact":"Damnrin Robus","phone":"Tel: 00260 211254248","email":"zamapex@ducogroup.com","web":""}]</script>
+
+<script>
+/* ── Data: 43 locations from locations_blp+dist-build.xlsx ────────────────
+   Data is embedded in the #bl-locations-data script tag above so the page
+   works locally (file://) without a fetch. Edit locations.json and re-inline
+   for production updates. */
+
+const map = L.map('bl-map', {
+  worldCopyJump: true,
+  zoomControl: true,
+  minZoom: 2,
+}).setView([20, 10], 2);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO',
+  subdomains: 'abcd', maxZoom: 19,
+}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+  subdomains: 'abcd', maxZoom: 19, pane: 'shadowPane',
+}).addTo(map);
+
+const cluster = L.markerClusterGroup({
+  showCoverageOnHover:false,
+  spiderfyOnMaxZoom:true,
+  maxClusterRadius:45,
+  iconCreateFunction(c){
+    const n = c.getChildCount();
+    const size = n < 10 ? 's' : n < 50 ? 'm' : 'l';
+    return L.divIcon({
+      html:`<div class="bl-cluster ${size}">${n}</div>`,
+      className:'', iconSize:null,
+    });
+  }
+});
+map.addLayer(cluster);
+
+const state = { all:[], filtered:[], type:'all', region:'', q:'', activeId:null };
+const markersById = new Map();
+
+function makeMarker(loc, id){
+  const isCorp = loc.type === 'Corporate';
+  const cls = 'bl-marker ' + (isCorp ? 'corp' : 'dist');
+  const icon = L.divIcon({
+    html:`<div class="${cls}" data-id="${id}"><div class="core"></div></div>`,
+    className:'', iconSize:[24,24], iconAnchor:[12,12],
+  });
+  const m = L.marker([loc.lat, loc.lng], {icon, riseOnHover:true});
+  m.on('click', () => openPanel(id));
+  return m;
+}
+
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function linkifyEmails(s){
+  if(!s) return '';
+  return escapeHtml(s).replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, m => `<a href="mailto:${m}">${m}</a>`);
+}
+function webLink(w){
+  if(!w) return '';
+  const url = /^https?:\/\//i.test(w) ? w : 'https://' + w;
+  return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(w)}</a>`;
+}
+
+function openPanel(id){
+  const loc = state.all[id]; if(!loc) return;
+  state.activeId = id;
+  document.querySelectorAll('.bl-marker.active').forEach(el => el.classList.remove('active'));
+  const el = document.querySelector(`.bl-marker[data-id="${id}"]`);
+  if(el) el.classList.add('active');
+
+  const panel = document.getElementById('bl-panel');
+  const isCorp = loc.type === 'Corporate';
+  document.getElementById('bl-p-type').innerHTML =
+    `<span class="dot ${isCorp?'corp':'dist'}"></span>${escapeHtml(loc.type)}`;
+  document.getElementById('bl-p-name').textContent = loc.company;
+  document.getElementById('bl-p-region').textContent = loc.region;
+
+  const fields = [
+    ['Address', escapeHtml(loc.address) || '<span class="muted">Not provided</span>'],
+    ['Contact', escapeHtml(loc.contact) || '<span class="muted">—</span>'],
+    ['Phone', loc.phone ? escapeHtml(loc.phone).replace(/\b(\+?[\d\s().\-/]{6,})/g, '<a href="tel:$1">$1</a>') : '<span class="muted">—</span>'],
+    ['Email', loc.email ? linkifyEmails(loc.email) : '<span class="muted">—</span>'],
+    ['Web',   loc.web   ? webLink(loc.web)        : '<span class="muted">—</span>'],
+  ];
+  document.getElementById('bl-p-body').innerHTML = fields.map(([l,v]) =>
+    `<div class="bl-field"><div class="bl-field-label">${l}</div><div class="bl-field-val">${v}</div></div>`
+  ).join('');
+
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden','false');
+
+  // Pan so the marker isn't behind the panel (desktop only)
+  if(window.innerWidth > 720){
+    const point = map.latLngToContainerPoint([loc.lat, loc.lng]);
+    const offset = (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--panel-w'))||380)/2;
+    map.panBy([point.x - (map.getSize().x - offset)/2 + offset, 0], {animate:true});
+  }
+}
+function closePanel(){
+  const panel = document.getElementById('bl-panel');
+  panel.classList.remove('open');
+  panel.setAttribute('aria-hidden','true');
+  document.querySelectorAll('.bl-marker.active').forEach(el => el.classList.remove('active'));
+  state.activeId = null;
+}
+document.getElementById('bl-p-close').addEventListener('click', closePanel);
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closePanel(); });
+
+function applyFilters(){
+  const q = state.q.trim().toLowerCase();
+  state.filtered = state.all.map((l,i)=>({l,i})).filter(({l}) => {
+    if(state.type !== 'all' && l.type !== state.type) return false;
+    if(state.region && l.region !== state.region) return false;
+    if(q){
+      const hay = `${l.company} ${l.region} ${l.contact} ${l.address} ${l.email}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  cluster.clearLayers();
+  const layers = [];
+  state.filtered.forEach(({l,i}) => {
+    let m = markersById.get(i);
+    if(!m){ m = makeMarker(l, i); markersById.set(i, m); }
+    layers.push(m);
+  });
+  cluster.addLayers(layers);
+  document.getElementById('bl-count-num').textContent = state.filtered.length;
+}
+
+function buildRegionOptions(){
+  const sel = document.getElementById('bl-region');
+  const regions = [...new Set(state.all.map(l => l.region).filter(Boolean))].sort();
+  regions.forEach(r => {
+    const o = document.createElement('option'); o.value = r; o.textContent = r; sel.appendChild(o);
+  });
+}
+
+function bindToolbar(){
+  document.getElementById('bl-search').addEventListener('input', e => { state.q = e.target.value; applyFilters(); });
+  document.getElementById('bl-region').addEventListener('change', e => { state.region = e.target.value; applyFilters(); });
+  document.querySelectorAll('.bl-toggle button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.bl-toggle button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      state.type = b.dataset.type;
+      applyFilters();
+    });
+  });
+}
+
+try {
+  const data = JSON.parse(document.getElementById('bl-locations-data').textContent);
+  state.all = data;
+  buildRegionOptions();
+  bindToolbar();
+  applyFilters();
+  const bounds = L.latLngBounds(data.map(d => [d.lat, d.lng]));
+  if(bounds.isValid()) map.fitBounds(bounds.pad(0.15), {maxZoom:4});
+} catch (err) {
+  console.error('Failed to load locations:', err);
+  document.getElementById('bl-map').innerHTML =
+    `<div class="bl-empty"><h3>Could not load locations</h3><p>${err.message}</p></div>`;
+}
+</script>
+
+</body>
+</html>
