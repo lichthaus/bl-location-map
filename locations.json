@@ -514,5 +514,17 @@
     "phone": "Tel: 00260 211254248",
     "email": "zamapex@ducogroup.com",
     "web": ""
+  },
+  {
+    "region": "South America",
+    "type": "Distributor",
+    "company": "AMAVSA INTERNATIONAL GROUP SA",
+    "address": "Residencial Bolonia, de los Pipitos, 1 cdra abajo, media cuadra al lago, Managua, Nicaragua",
+    "lat": 12.1364,
+    "lng": -86.2514,
+    "contact": "",
+    "phone": "",
+    "email": "",
+    "web": ""
   }
 ]
