@@ -1,17 +1,5 @@
 [
   {
-    "region": "Europe",
-    "type": "Distributor",
-    "company": "INDEQ Corp OÜ",
-    "address": "HARJUMAA, MAHTRA TN 72-163,TALLINN, 13812, Estonia",
-    "lat": 59.449331,
-    "lng": 24.7157,
-    "contact": "Sales",
-    "phone": "+358 9 2303415",
-    "email": "o.chekulaeva@esquire-corp.ch",
-    "web": ""
-  },
-  {
     "region": "South America",
     "type": "Distributor",
     "company": "ABA REPRESENTACIONES S.A.C.",
