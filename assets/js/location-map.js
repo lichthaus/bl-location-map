@@ -119,10 +119,16 @@
       panel.classList.add('open');
       panel.setAttribute('aria-hidden', 'false');
 
+      // Recenter on the selected pin. On desktop, shift the view so the pin
+      // sits in the middle of the visible map area (not hidden by the side panel).
+      var targetZoom = Math.max(map.getZoom(), 5);
+      var markerLatLng = L.latLng(loc.lat, loc.lng);
       if (window.innerWidth > 720){
-        var point = map.latLngToContainerPoint([loc.lat, loc.lng]);
         var pw = parseInt(getComputedStyle(root).getPropertyValue('--panel-w')) || 380;
-        map.panBy([point.x - (map.getSize().x - pw)/2 + pw, 0], {animate:true});
+        var targetPoint = map.project(markerLatLng, targetZoom).add([pw / 2, 0]);
+        map.flyTo(map.unproject(targetPoint, targetZoom), targetZoom, {duration: 0.6});
+      } else {
+        map.flyTo(markerLatLng, targetZoom, {duration: 0.6});
       }
     }
 
