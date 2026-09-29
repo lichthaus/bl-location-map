@@ -3,7 +3,7 @@
  * Plugin Name:       BL Location Map
  * Plugin URI:        https://boartlongyearproducts.com/
  * Description:       Boart Longyear global locations map — interactive dark-mode map of corporate offices and authorized distributors. Usage: [bl_location_map] or [bl_location_map header="false"] to suppress the built-in title header on pages that already carry their own heading.
- * Version:           1.0.7
+ * Version:           1.0.8
  * Author:            Boart Longyear Drilling Products
  * Author URI:        https://boartlongyearproducts.com/
  * License:           Proprietary
@@ -13,11 +13,35 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 if ( ! defined( 'BL_LOCMAP_VERSION' ) ) {
-    define( 'BL_LOCMAP_VERSION', '1.0.7' );
+    define( 'BL_LOCMAP_VERSION', '1.0.8' );
 }
 define( 'BL_LOCMAP_FILE', __FILE__ );
 define( 'BL_LOCMAP_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'BL_LOCMAP_URL',  plugin_dir_url( __FILE__ ) );
+
+// Self-hosted Protomaps dark vector basemap (replaces the retired CARTO tiles).
+// The .pmtiles archive is too large for the plugin repo/ZIP, so it lives OUTSIDE
+// the plugin at wp-content/bl-maps/ — a path plugin updates never touch and which
+// the CDN-uploads-rewrite mu-plugin ignores (it only rewrites /uploads/), so it is
+// served same-origin (HTTP Range, no CORS). Override with the BL_LOCMAP_PMTILES_URL
+// constant or the 'bl_locmap_pmtiles_url' filter to host it elsewhere.
+if ( ! defined( 'BL_LOCMAP_PMTILES_FILE' ) ) {
+    define( 'BL_LOCMAP_PMTILES_FILE', 'bl-basemap-world-z7.pmtiles' );
+}
+
+/**
+ * Resolve the URL of the Protomaps basemap archive. Defaults to
+ * <wp-content>/bl-maps/<file>; filterable/constant-overridable so the archive
+ * can be moved to a CDN with Range + CORS-preflight support later.
+ */
+function bl_locmap_pmtiles_url() {
+    if ( defined( 'BL_LOCMAP_PMTILES_URL' ) && BL_LOCMAP_PMTILES_URL ) {
+        $url = BL_LOCMAP_PMTILES_URL;
+    } else {
+        $url = content_url( 'bl-maps/' . BL_LOCMAP_PMTILES_FILE );
+    }
+    return apply_filters( 'bl_locmap_pmtiles_url', $url );
+}
 
 // ── Load + cache the locations dataset ───────────────────────
 function bl_locmap_get_locations() {
@@ -82,6 +106,17 @@ function bl_locmap_enqueue() {
         true
     );
 
+    // Protomaps Leaflet layer — renders the self-hosted .pmtiles dark vector
+    // basemap (labels included) directly in Leaflet. Standalone UMD bundle:
+    // pmtiles reader + @protomaps/basemaps flavors are inlined, so no extra deps.
+    wp_enqueue_script(
+        'bl-protomaps',
+        'https://unpkg.com/protomaps-leaflet@5.1.0/dist/protomaps-leaflet.js',
+        [ 'bl-leaflet' ],
+        '5.1.0',
+        true
+    );
+
     // Plugin CSS + JS
     wp_enqueue_style(
         'bl-location-map',
@@ -92,7 +127,7 @@ function bl_locmap_enqueue() {
     wp_enqueue_script(
         'bl-location-map',
         BL_LOCMAP_URL . 'assets/js/location-map.js',
-        [ 'bl-leaflet', 'bl-leaflet-cluster' ],
+        [ 'bl-leaflet', 'bl-leaflet-cluster', 'bl-protomaps' ],
         BL_LOCMAP_VERSION,
         true
     );
@@ -102,6 +137,16 @@ function bl_locmap_enqueue() {
         'bl-location-map',
         'BL_LOCATIONS',
         bl_locmap_get_locations()
+    );
+
+    // Basemap config (Protomaps archive URL + capped source zoom).
+    wp_localize_script(
+        'bl-location-map',
+        'BL_LOCMAP_CFG',
+        [
+            'pmtiles'     => bl_locmap_pmtiles_url(),
+            'maxDataZoom' => 7,
+        ]
     );
 }
 

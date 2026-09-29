@@ -6,3 +6,6 @@ node_modules/
 .idea/
 *.zip
 ~$*
+
+# Basemap archive — too large for the repo/ZIP; hosted at wp-content/bl-maps/ (see basemap/README).
+*.pmtiles

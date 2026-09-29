@@ -81,7 +81,7 @@ bl-location-map/
 
 - **Map library:** [Leaflet 1.9.4](https://leafletjs.com/) (MIT, no API key)
 - **Plugin:** [Leaflet.markercluster 1.5.3](https://github.com/Leaflet/Leaflet.markercluster) (MIT)
-- **Tiles:** CARTO Dark Matter (free, attribution required — already included)
+- **Basemap:** self-hosted [Protomaps](https://protomaps.com/) dark vector tiles rendered with `protomaps-leaflet` — no third-party tile provider, no API key. The `.pmtiles` archive is served same-origin from `wp-content/bl-maps/`. See [`basemap/README.md`](basemap/README.md) for hosting and rebuild instructions. (Replaced CARTO Dark Matter in v1.0.8 after its license expired.)
 - **Data injection:** PHP loads `locations.json`, hands it to JS via `wp_localize_script` plus an inline `<script type="application/json">` fallback. **No fetch calls** — works on cached pages and behind picky CDNs.
 - **Asset loading:** CSS/JS are only enqueued on pages where the `[bl_location_map]` shortcode is present (checks both `post_content` and Elementor's `_elementor_data`).
 

@@ -1,7 +1,9 @@
-/* BL Location Map — Leaflet + dark Carto tiles + cluster + side panel
+/* BL Location Map — Leaflet + self-hosted Protomaps dark vector basemap +
+   cluster + side panel.
    Initializes every .bl-locmap on the page. Locations data comes from
    either window.BL_LOCATIONS (set by WP via wp_localize_script) or from
-   a sibling <script type="application/json" class="bl-lm-data"> element. */
+   a sibling <script type="application/json" class="bl-lm-data"> element.
+   Basemap URL comes from window.BL_LOCMAP_CFG.pmtiles. */
 (function(){
   'use strict';
 
@@ -43,16 +45,29 @@
     if (!mapEl || typeof L === 'undefined') return;
 
     var map = L.map(mapEl, {
-      worldCopyJump:true, zoomControl:true, minZoom:2,
+      worldCopyJump:true, zoomControl:true, minZoom:2, maxZoom:12,
     }).setView([20, 10], 2);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-      attribution:'&copy; OpenStreetMap &copy; CARTO',
-      subdomains:'abcd', maxZoom:19,
-    }).addTo(map);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
-      subdomains:'abcd', maxZoom:19, pane:'shadowPane',
-    }).addTo(map);
+    // Self-hosted Protomaps dark vector basemap (labels baked in). The archive
+    // is capped at z7, so tell the renderer to overzoom past that rather than
+    // request tiles that don't exist. Falls back to a plain OSM raster only if
+    // the library or archive can't load, so the map is never blank.
+    var cfg = window.BL_LOCMAP_CFG || {};
+    var pmUrl = cfg.pmtiles || '';
+    if (pmUrl && window.protomapsL && typeof protomapsL.leafletLayer === 'function') {
+      protomapsL.leafletLayer({
+        url: pmUrl,
+        flavor: 'dark',
+        lang: 'en',
+        maxDataZoom: Number(cfg.maxDataZoom) || 7,
+        attribution: '<a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a> &copy; <a href="https://openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+      }).addTo(map);
+    } else {
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution:'&copy; <a href="https://openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+        maxZoom:19,
+      }).addTo(map);
+    }
 
     var cluster = L.markerClusterGroup({
       showCoverageOnHover:false,
